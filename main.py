@@ -30,7 +30,7 @@ def delete_all(update: Update, context: CallbackContext) -> None:
 # Main function to run the bot
 def main():
     # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
+    updater = Updater("7526642009:AAHB4JSrLtFjQNLX5nDz28_RK1yQ1g8lHSc", use_context=True)
 
     # Command to delete all bot messages
     updater.dispatcher.add_handler(CommandHandler("delete_all", delete_all))
