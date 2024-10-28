@@ -1,22 +1,44 @@
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
+from flask import Flask
+import threading
 import logging
+import os
 
-# Configure logging
+# Initialize environment variables
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Store your bot token as an environment variable
+CHANNEL_ID = -1002390863629         # Channel ID for receiving commands
+
+# Initialize Flask for keeping the bot alive on Render
+app = Flask(__name__)
+
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Function to delete all bot messages in a channel
+# Route for Render to ping and keep the bot active
+@app.route('/')
+def home():
+    return "Bot is running."
+
+# /start command
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Welcome! I'm here to help manage your channel.")
+
+# /about command
+def about(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("This bot can delete all messages it has sent to the channel and responds to specific commands.")
+
+# /delete_all command
 def delete_all(update: Update, context: CallbackContext) -> None:
-    # Ensure the command is run in a channel where the bot has admin permissions
-    if not update.effective_chat or update.effective_chat.type != "channel":
-        update.message.reply_text("This command can only be used in a channel.")
+    if update.effective_chat.id != CHANNEL_ID:
+        update.message.reply_text("This command can only be used in the specified channel.")
         return
 
     chat_id = update.effective_chat.id
     try:
-        # Fetch recent messages and delete them if the bot sent them
-        for message_id in range(1, update.message.message_id):  # Iterating by message IDs
+        # Iterate and delete bot messages within the channel
+        for message_id in range(1, update.message.message_id):
             try:
                 context.bot.delete_message(chat_id=chat_id, message_id=message_id)
             except Exception as e:
@@ -28,16 +50,21 @@ def delete_all(update: Update, context: CallbackContext) -> None:
         logger.error(e)
 
 # Main function to run the bot
-def main():
-    # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-    updater = Updater("7526642009:AAHB4JSrLtFjQNLX5nDz28_RK1yQ1g8lHSc", use_context=True)
+def run_bot():
+    updater = Updater(BOT_TOKEN, use_context=True)
 
-    # Command to delete all bot messages
+    # Add handlers for /start, /about, and /delete_all
+    updater.dispatcher.add_handler(CommandHandler("start", start))
+    updater.dispatcher.add_handler(CommandHandler("about", about))
     updater.dispatcher.add_handler(CommandHandler("delete_all", delete_all))
 
     # Start polling
     updater.start_polling()
     updater.idle()
 
+# Run bot in a separate thread
+threading.Thread(target=run_bot).start()
+
+# Start Flask server to keep Render service active
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
